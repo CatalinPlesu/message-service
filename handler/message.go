@@ -16,7 +16,8 @@ import (
 )
 
 type Message struct {
-	Repo *message.RedisRepo
+	RdRepo *message.RedisRepo
+	PgRepo *message.PostgresRepo
 }
 
 func (h *Message) Create(w http.ResponseWriter, r *http.Request) {
@@ -43,7 +44,7 @@ func (h *Message) Create(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:   &now,
 	}
 
-	err := h.Repo.Insert(r.Context(), theMessage)
+	err := h.PgRepo.Insert(r.Context(), theMessage)
 	if err != nil {
 		fmt.Println("failed to insert message:", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -76,7 +77,7 @@ func (h *Message) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	const size = 50
-	res, err := h.Repo.FindAll(r.Context(), message.FindAllPage{
+	res, err := h.PgRepo.FindAll(r.Context(), message.FindAllPage{
 		Offset: cursor,
 		Size:   size,
 	})
@@ -103,6 +104,115 @@ func (h *Message) List(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func (h *Message) ListByChannelID(w http.ResponseWriter, r *http.Request) {
+    idParam := chi.URLParam(r, "id")
+
+    // Parse ChannelID as UUID
+    channelID, err := uuid.Parse(idParam)
+    if err != nil {
+        w.WriteHeader(http.StatusBadRequest)
+        return
+    }
+
+    cursorStr := r.URL.Query().Get("cursor")
+    if cursorStr == "" {
+        cursorStr = "0"
+    }
+
+    const decimal = 10
+    const bitSize = 64
+    cursor, err := strconv.ParseUint(cursorStr, decimal, bitSize)
+    if err != nil {
+        w.WriteHeader(http.StatusBadRequest)
+        return
+    }
+
+    res, cursor, err := h.PgRepo.FindByChannelID(r.Context(), channelID, message.FindAllPage{
+        Offset: cursor,
+        Size:   50,
+    })
+
+    if err != nil {
+        if errors.Is(err, message.ErrNotExist) {
+            w.WriteHeader(http.StatusNotFound)
+            return
+        }
+        fmt.Println("failed to find messages by channel ID:", err)
+        w.WriteHeader(http.StatusInternalServerError)
+        return
+    }
+
+    var response struct {
+        Items []model.Message `json:"items"`
+        Next  uint64          `json:"next,omitempty"`
+    }
+    response.Items = res
+    response.Next = cursor
+
+    data, err := json.Marshal(response)
+    if err != nil {
+        fmt.Println("failed to marshal messages:", err)
+        w.WriteHeader(http.StatusInternalServerError)
+        return
+    }
+
+    w.Write(data)
+}
+
+func (h *Message) ListByParentID(w http.ResponseWriter, r *http.Request) {
+    idParam := chi.URLParam(r, "id")
+
+    parentID, err := uuid.Parse(idParam)
+    if err != nil {
+        w.WriteHeader(http.StatusBadRequest)
+        return
+    }
+
+    cursorStr := r.URL.Query().Get("cursor")
+    if cursorStr == "" {
+        cursorStr = "0"
+    }
+
+    const decimal = 10
+    const bitSize = 64
+    cursor, err := strconv.ParseUint(cursorStr, decimal, bitSize)
+    if err != nil {
+        w.WriteHeader(http.StatusBadRequest)
+        return
+    }
+
+    res, cursor, err := h.PgRepo.FindByParentID(r.Context(), parentID, message.FindAllPage{
+        Offset: cursor,
+        Size:   50,
+    })
+
+    if err != nil {
+        if errors.Is(err, message.ErrNotExist) {
+            w.WriteHeader(http.StatusNotFound)
+            return
+        }
+        fmt.Println("failed to find messages by channel ID:", err)
+        w.WriteHeader(http.StatusInternalServerError)
+        return
+    }
+
+    var response struct {
+        Items []model.Message `json:"items"`
+        Next  uint64          `json:"next,omitempty"`
+    }
+    response.Items = res
+    response.Next = cursor
+
+    data, err := json.Marshal(response)
+    if err != nil {
+        fmt.Println("failed to marshal messages:", err)
+        w.WriteHeader(http.StatusInternalServerError)
+        return
+    }
+
+    w.Write(data)
+}
+
 func (h *Message) GetByID(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 
@@ -112,7 +222,7 @@ func (h *Message) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	theMessage, err := h.Repo.FindByID(r.Context(), messageID)
+	theMessage, err := h.PgRepo.FindByID(r.Context(), messageID)
 	if errors.Is(err, message.ErrNotExist) {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -147,7 +257,7 @@ func (h *Message) UpdateByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	theMessage, err := h.Repo.FindByID(r.Context(), messageID)
+	theMessage, err := h.PgRepo.FindByID(r.Context(), messageID)
 	if errors.Is(err, message.ErrNotExist) {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -163,7 +273,7 @@ func (h *Message) UpdateByID(w http.ResponseWriter, r *http.Request) {
 	}
 	theMessage.UpdatedAt = &now
 
-	err = h.Repo.Update(r.Context(), theMessage)
+	err = h.PgRepo.Update(r.Context(), theMessage)
 	if err != nil {
 		fmt.Println("failed to update message:", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -186,7 +296,7 @@ func (h *Message) DeleteByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.Repo.DeleteByID(r.Context(), messageID)
+	err = h.PgRepo.DeleteByID(r.Context(), messageID)
 	if errors.Is(err, message.ErrNotExist) {
 		w.WriteHeader(http.StatusNotFound)
 		return
