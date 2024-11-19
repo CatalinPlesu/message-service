@@ -18,3 +18,12 @@ type Message struct {
 	CreatedAt   *time.Time `bun:"created_at,notnull,default:current_timestamp"` // Timestamp with default value.
 	UpdatedAt   *time.Time `bun:"updated_at,notnull,default:current_timestamp"` // Timestamp with default value.
 }
+
+
+type MessageMin struct {
+	ChannelID   uuid.UUID  `json:"channel_id"`   
+	ParentID    *uuid.UUID `json:"parent_id,omitempty"` 
+	UserID      uuid.UUID  `json:"user_id"`      
+	MessageText string     `json:"message_text"`  
+	CreatedAt   *time.Time `json:"created_at,omitempty"` 
+}

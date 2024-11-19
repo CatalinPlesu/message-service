@@ -93,7 +93,7 @@ func (r *PostgresRepo) FindAll(ctx context.Context, page FindAllPage) (MessagePa
 
 	return MessagePage{
 		Messages: messages,
-		Cursor:   page.Size + 50,
+		Cursor:   page.Size + 100,
 	}, nil
 }
 
@@ -103,7 +103,7 @@ func (p *PostgresRepo) FindByChannelID(ctx context.Context, channelID uuid.UUID,
 	query := p.DB.NewSelect().
 		Model(&messages).
 		Where("channel_id = ?", channelID). 
-		Order("created_at DESC").           
+		Order("created_at ASC").           
 		Limit(int(page.Size))               
 
 	err := query.Scan(ctx)
@@ -113,7 +113,7 @@ func (p *PostgresRepo) FindByChannelID(ctx context.Context, channelID uuid.UUID,
 
 	var newCursor uint64
 	if len(messages) > 0 {
-		newCursor = page.Size + 50
+		newCursor = page.Size + 100
 	}
 
 	return messages, newCursor, nil
@@ -135,7 +135,7 @@ func (p *PostgresRepo) FindByParentID(ctx context.Context, parentID uuid.UUID, p
 
 	var newCursor uint64
 	if len(messages) > 0 {
-		newCursor = page.Size + 50
+		newCursor = page.Size + 100
 	}
 
 	return messages, newCursor, nil

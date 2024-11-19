@@ -11,12 +11,14 @@ import (
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/driver/pgdriver"
+	"github.com/CatalinPlesu/message-service/messaging"
 )
 
 type App struct {
 	router http.Handler
 	rdb    *redis.Client
 	db     *bun.DB
+	rabbitMQ *messaging.RabbitMQ
 	config Config
 }
 
@@ -29,9 +31,13 @@ func New(config Config) *App {
 	sqlDB := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
 	db := bun.NewDB(sqlDB, pgdialect.New())
 
+
+	rabbitMQ, _ := messaging.NewRabbitMQ(config.RabitMQURL)
+
 	app := &App{
 		rdb:    rdb,
 		db:     db,
+		rabbitMQ: rabbitMQ,
 		config: config,
 	}
 

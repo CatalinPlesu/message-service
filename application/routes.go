@@ -30,6 +30,7 @@ func (a *App) loadMessageRoutes(router chi.Router) {
 			Client: a.rdb,
 		},
 		PgRepo: message.NewPostgresRepo(a.db),
+		RabbitMQ: a.rabbitMQ,
 	}
 
 	router.Post("/", messageHandler.Create)                                   
